@@ -1,21 +1,24 @@
-//
-//  ContentView.swift
-//  DailyStack
-//
-//  Created by yeonju.oh on 3/2/26.
-//
-
 import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        TabView {
+            TodayView()
+                .tabItem {
+                    Label("Today", systemImage: "checkmark.square")
+                }
+
+            HistoryView()
+                .tabItem {
+                    Label("History", systemImage: "chart.bar.fill")
+                }
+
+            ManageView()
+                .tabItem {
+                    Label("Manage", systemImage: "list.bullet")
+                }
         }
-        .padding()
+        .tint(Color.dsBlue)
     }
 }
 

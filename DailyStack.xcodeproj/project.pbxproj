@@ -7,13 +7,18 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		2E5F2E1A2F5551F100A8804B /* DailyStack.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DailyStack.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2E5F2E1A2F5551F100A8804B /* DailyStack.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = DailyStack.app; path = /Users/yeonju.oh/Projects/DailyStack/DailyStack/DailyStack/build/Debug/DailyStack.app; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		2E5F2E1C2F5551F100A8804B /* DailyStack */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = DailyStack;
+			sourceTree = "<group>";
+		};
+		2E5F2E322F55537E00A8804B /* Views */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Views;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -33,16 +38,8 @@
 			isa = PBXGroup;
 			children = (
 				2E5F2E1C2F5551F100A8804B /* DailyStack */,
-				2E5F2E1B2F5551F100A8804B /* Products */,
+				2E5F2E322F55537E00A8804B /* Views */,
 			);
-			sourceTree = "<group>";
-		};
-		2E5F2E1B2F5551F100A8804B /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				2E5F2E1A2F5551F100A8804B /* DailyStack.app */,
-			);
-			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -62,6 +59,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				2E5F2E1C2F5551F100A8804B /* DailyStack */,
+				2E5F2E322F55537E00A8804B /* Views */,
 			);
 			name = DailyStack;
 			packageProductDependencies = (
@@ -95,7 +93,7 @@
 			mainGroup = 2E5F2E112F5551F100A8804B;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = 2E5F2E1B2F5551F100A8804B /* Products */;
+			productRefGroup = 2E5F2E112F5551F100A8804B;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
