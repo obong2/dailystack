@@ -111,6 +111,12 @@ struct TodayView: View {
                 AddTodoView()
                     .environment(\.modelContext, modelContext)
             }
+            .sheet(isPresented: $showingEditTodo) {
+                if let todo = editingTodo {
+                    EditTodoView(todo: todo)
+                        .environment(\.modelContext, modelContext)
+                }
+            }
         }
     }
 
@@ -253,9 +259,12 @@ struct TodayView: View {
 
             // 미완료 투두들
             ForEach(pendingTodos.sorted(by: { $0.createdAt < $1.createdAt })) { todo in
-                TodoRowView(todo: todo) {
+                TodoRowView(todo: todo, onToggle: {
                     toggleTodo(todo)
-                }
+                }, onEdit: {
+                    editingTodo = todo
+                    showingEditTodo = true
+                })
                 if todo.id != pendingTodos.last?.id || !completedTodos.isEmpty {
                     Divider()
                         .padding(.leading, 20)
@@ -264,9 +273,12 @@ struct TodayView: View {
             
             // 완료된 투두들
             ForEach(completedTodos.sorted(by: { $0.completedAt ?? Date() > $1.completedAt ?? Date() })) { todo in
-                TodoRowView(todo: todo) {
+                TodoRowView(todo: todo, onToggle: {
                     toggleTodo(todo)
-                }
+                }, onEdit: {
+                    editingTodo = todo
+                    showingEditTodo = true
+                })
                 if todo.id != completedTodos.last?.id {
                     Divider()
                         .padding(.leading, 20)
@@ -277,9 +289,22 @@ struct TodayView: View {
     }
     
     @State private var showingAddTodo = false
+    @State private var showingEditTodo = false
+    @State private var editingTodo: Todo? = nil
     
     private func toggleTodo(_ todo: Todo) {
         todo.toggle()
+        
+        // 완료되면 3초 후 자동 삭제
+        if todo.isCompleted {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                withAnimation(.easeOut(duration: 0.3)) {
+                    modelContext.delete(todo)
+                    try? modelContext.save()
+                }
+            }
+        }
+        
         try? modelContext.save()
     }
     
@@ -395,6 +420,7 @@ struct AddTodoView: View {
 struct TodoRowView: View {
     let todo: Todo
     let onToggle: () -> Void
+    let onEdit: () -> Void
     
     private var isOverdue: Bool {
         guard let dueDate = todo.dueDate, !todo.isCompleted else { return false }
@@ -449,6 +475,16 @@ struct TodoRowView: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
         .contentShape(Rectangle())
+        .contextMenu {
+            Button {
+                onEdit()
+            } label: {
+                Label("편집", systemImage: "pencil")
+            }
+        }
+        .onTapGesture(count: 2) {
+            onEdit()
+        }
     }
 }
 
@@ -492,5 +528,109 @@ struct TodoCheckboxButton: View {
         }
         .buttonStyle(.plain)
         .animation(.easeInOut(duration: 0.15), value: isCompleted)
+    }
+}
+
+// MARK: - EditTodoView
+
+struct EditTodoView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+    
+    let todo: Todo
+    
+    @State private var title: String
+    @State private var priority: TodoPriority
+    @State private var hasDueDate: Bool
+    @State private var dueDate: Date
+    
+    init(todo: Todo) {
+        self.todo = todo
+        self._title = State(initialValue: todo.title)
+        self._priority = State(initialValue: todo.priority)
+        self._hasDueDate = State(initialValue: todo.dueDate != nil)
+        self._dueDate = State(initialValue: todo.dueDate ?? Date())
+    }
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("할 일을 입력하세요", text: $title)
+                        .font(.body)
+                }
+                
+                Section("우선순위") {
+                    Picker("Priority", selection: $priority) {
+                        ForEach(TodoPriority.allCases, id: \.self) { priority in
+                            HStack {
+                                Circle()
+                                    .fill(priority.color)
+                                    .frame(width: 12, height: 12)
+                                Text(priority.displayName)
+                            }
+                            .tag(priority)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                
+                Section {
+                    Toggle("마감일 설정", isOn: $hasDueDate)
+                    
+                    if hasDueDate {
+                        DatePicker(
+                            "마감일",
+                            selection: $dueDate,
+                            in: Date()...,
+                            displayedComponents: [.date, .hourAndMinute]
+                        )
+                    }
+                }
+                
+                Section {
+                    Button(role: .destructive) {
+                        deleteTodo()
+                    } label: {
+                        Label("삭제", systemImage: "trash")
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+            .navigationTitle("할 일 편집")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("취소") {
+                        dismiss()
+                    }
+                    .foregroundStyle(Color(.label))
+                }
+                
+                ToolbarItem(placement: .primaryAction) {
+                    Button("저장") {
+                        saveTodo()
+                    }
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.dsBlue)
+                    .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+    }
+    
+    private func saveTodo() {
+        todo.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        todo.priority = priority
+        todo.dueDate = hasDueDate ? dueDate : nil
+        
+        try? modelContext.save()
+        dismiss()
+    }
+    
+    private func deleteTodo() {
+        modelContext.delete(todo)
+        try? modelContext.save()
+        dismiss()
     }
 }

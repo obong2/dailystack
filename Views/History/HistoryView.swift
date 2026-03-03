@@ -52,10 +52,10 @@ struct HistoryView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("History")
                             .font(.system(size: 28, weight: .bold))
-                            .foregroundStyle(Color(.label))
+                            .foregroundStyle(Color(UIColor.label))
                         Text("최근 8주 완료 패턴")
                             .font(.subheadline)
-                            .foregroundStyle(Color(.secondaryLabel))
+                            .foregroundStyle(Color(UIColor.secondaryLabel))
                     }
                     .padding(.top, 16)
 
@@ -73,7 +73,7 @@ struct HistoryView: View {
                 }
                 .padding(.horizontal, 20)
             }
-            .background(Color(.systemBackground))
+            .background(Color(UIColor.systemBackground))
             .navigationBarHidden(true)
             .sheet(isPresented: $showingPopover) {
                 if let date = selectedDate {
@@ -143,14 +143,14 @@ struct StatCard: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.caption)
-                .foregroundStyle(Color(.secondaryLabel))
+                .foregroundStyle(Color(UIColor.secondaryLabel))
             Text(value)
                 .font(.system(size: 24, weight: .bold))
                 .foregroundStyle(color)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(Color(.secondarySystemGroupedBackground))
+        .background(Color(UIColor.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -170,10 +170,10 @@ struct DayDetailSheet: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(date.formatted(.dateTime.weekday(.wide)))
                         .font(.subheadline)
-                        .foregroundStyle(Color(.secondaryLabel))
+                        .foregroundStyle(Color(UIColor.secondaryLabel))
                     Text(date.formatted(.dateTime.month().day()))
                         .font(.title2.bold())
-                        .foregroundStyle(Color(.label))
+                        .foregroundStyle(Color(UIColor.label))
                 }
                 Spacer()
                 Button("닫기") { dismiss() }
@@ -188,7 +188,7 @@ struct DayDetailSheet: View {
             if completedRoutines.isEmpty {
                 Text("완료한 루틴이 없어요")
                     .font(.subheadline)
-                    .foregroundStyle(Color(.secondaryLabel))
+                    .foregroundStyle(Color(UIColor.secondaryLabel))
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.top, 40)
             } else {
@@ -200,7 +200,7 @@ struct DayDetailSheet: View {
                                     .foregroundStyle(Color.dsBlue)
                                 Text(title)
                                     .font(.body)
-                                    .foregroundStyle(Color(.label))
+                                    .foregroundStyle(Color(UIColor.label))
                             }
                             .padding(.horizontal, 20)
                             .padding(.vertical, 14)
