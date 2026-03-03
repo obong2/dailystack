@@ -65,7 +65,46 @@ struct DailyStackApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .onAppear {
+                    cleanupOldTodos()
+                }
         }
         .modelContainer(sharedModelContainer)
+    }
+    
+    // 앱 시작 시 이전 날 완료된 Todo들 정리
+    private func cleanupOldTodos() {
+        let context = sharedModelContainer.mainContext
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        
+        do {
+            // 완료된 Todo들을 가져와서 필터링
+            let descriptor = FetchDescriptor<Todo>(
+                predicate: #Predicate<Todo> { todo in
+                    todo.isCompleted == true
+                }
+            )
+            let completedTodos = try context.fetch(descriptor)
+            
+            // 오늘 이전에 완료된 Todo들 찾기
+            let todosToDelete = completedTodos.filter { todo in
+                guard let completedAt = todo.completedAt else { return false }
+                let completedDay = calendar.startOfDay(for: completedAt)
+                return completedDay < today
+            }
+            
+            // 삭제
+            for todo in todosToDelete {
+                context.delete(todo)
+            }
+            
+            if !todosToDelete.isEmpty {
+                try context.save()
+                print("정리된 이전 날 완료 Todo: \(todosToDelete.count)개")
+            }
+        } catch {
+            print("Todo 정리 중 오류: \(error)")
+        }
     }
 }

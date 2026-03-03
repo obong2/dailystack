@@ -107,6 +107,9 @@ struct TodayView: View {
             }
             .background(Color(.systemBackground))
             .navigationBarHidden(true)
+            .onAppear {
+                cleanupOldCompletedTodos()
+            }
             .sheet(isPresented: $showingAddTodo) {
                 AddTodoView()
                     .environment(\.modelContext, modelContext)
@@ -294,18 +297,29 @@ struct TodayView: View {
     
     private func toggleTodo(_ todo: Todo) {
         todo.toggle()
+        try? modelContext.save()
+    }
+    
+    // 이전 날 완료된 Todo들을 정리
+    private func cleanupOldCompletedTodos() {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
         
-        // 완료되면 3초 후 자동 삭제
-        if todo.isCompleted {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                withAnimation(.easeOut(duration: 0.3)) {
-                    modelContext.delete(todo)
-                    try? modelContext.save()
-                }
-            }
+        // 완료된 Todo 중에서 완료일이 오늘 이전인 것들 찾기
+        let todosToDelete = completedTodos.filter { todo in
+            guard let completedAt = todo.completedAt else { return false }
+            let completedDay = calendar.startOfDay(for: completedAt)
+            return completedDay < today
         }
         
-        try? modelContext.save()
+        // 오래된 완료 Todo들 삭제
+        for todo in todosToDelete {
+            modelContext.delete(todo)
+        }
+        
+        if !todosToDelete.isEmpty {
+            try? modelContext.save()
+        }
     }
     
     // MARK: - Insight Banner
