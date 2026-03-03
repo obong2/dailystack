@@ -114,11 +114,9 @@ struct TodayView: View {
                 AddTodoView()
                     .environment(\.modelContext, modelContext)
             }
-            .sheet(isPresented: $showingEditTodo) {
-                if let todo = editingTodo {
-                    EditTodoView(todo: todo)
-                        .environment(\.modelContext, modelContext)
-                }
+            .sheet(item: $editingTodo) { todo in
+                EditTodoView(todo: todo)
+                    .environment(\.modelContext, modelContext)
             }
         }
     }
@@ -266,7 +264,6 @@ struct TodayView: View {
                     toggleTodo(todo)
                 }, onEdit: {
                     editingTodo = todo
-                    showingEditTodo = true
                 })
                 if todo.id != pendingTodos.last?.id || !completedTodos.isEmpty {
                     Divider()
@@ -280,7 +277,6 @@ struct TodayView: View {
                     toggleTodo(todo)
                 }, onEdit: {
                     editingTodo = todo
-                    showingEditTodo = true
                 })
                 if todo.id != completedTodos.last?.id {
                     Divider()
@@ -292,7 +288,6 @@ struct TodayView: View {
     }
     
     @State private var showingAddTodo = false
-    @State private var showingEditTodo = false
     @State private var editingTodo: Todo? = nil
     
     private func toggleTodo(_ todo: Todo) {
