@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UserNotifications
 
 struct AddEditRoutineView: View {
     @Environment(\.modelContext) private var modelContext
@@ -146,27 +147,65 @@ struct AddEditRoutineView: View {
         let cleanTitle = title.trimmingCharacters(in: .whitespaces)
         let cleanIcon = icon.trimmingCharacters(in: .whitespaces)
 
-        if let routine = editingRoutine {
-            routine.title = cleanTitle
-            routine.timeBlock = selectedBlock
-            routine.repeatDays = Array(repeatDays).sorted()
-            routine.icon = cleanIcon.isEmpty ? nil : cleanIcon
-            routine.notificationTime = enableNotification ? notificationTime : nil
-        } else {
-            // 동일 블록 내 가장 마지막 순서
-            let newRoutine = Routine(
-                title: cleanTitle,
-                timeBlock: selectedBlock,
-                repeatDays: Array(repeatDays).sorted(),
-                sortOrder: 999,
-                notificationTime: enableNotification ? notificationTime : nil,
-                icon: cleanIcon.isEmpty ? nil : cleanIcon
-            )
-            modelContext.insert(newRoutine)
-        }
+        Task {
+            if let routine = editingRoutine {
+                routine.title = cleanTitle
+                routine.timeBlock = selectedBlock
+                routine.repeatDays = Array(repeatDays).sorted()
+                routine.icon = cleanIcon.isEmpty ? nil : cleanIcon
+                routine.notificationTime = enableNotification ? notificationTime : nil
+                
+                // 알림 업데이트
+                await updateNotifications(for: routine)
+                
+            } else {
+                // 동일 블록 내 가장 마지막 순서
+                let newRoutine = Routine(
+                    title: cleanTitle,
+                    timeBlock: selectedBlock,
+                    repeatDays: Array(repeatDays).sorted(),
+                    sortOrder: 999,
+                    notificationTime: enableNotification ? notificationTime : nil,
+                    icon: cleanIcon.isEmpty ? nil : cleanIcon
+                )
+                modelContext.insert(newRoutine)
+                
+                // 알림 설정
+                await updateNotifications(for: newRoutine)
+            }
 
-        try? modelContext.save()
-        dismiss()
+            try? modelContext.save()
+            
+            await MainActor.run {
+                dismiss()
+            }
+        }
+    }
+    
+    // 알림 업데이트
+    private func updateNotifications(for routine: Routine) async {
+        let notificationManager = NotificationManager.shared
+        
+        if routine.notificationTime != nil {
+            // 권한 확인 및 요청
+            let status = await notificationManager.checkPermissionStatus()
+            if status == .notDetermined {
+                let granted = await notificationManager.requestPermission()
+                if !granted {
+                    print("알림 권한이 거부되었습니다")
+                    return
+                }
+            } else if status != .authorized {
+                print("알림 권한이 없습니다")
+                return
+            }
+            
+            // 알림 예약
+            await notificationManager.scheduleRoutineNotification(for: routine)
+        } else {
+            // 알림 취소
+            await notificationManager.cancelRoutineNotifications(for: routine)
+        }
     }
 }
 

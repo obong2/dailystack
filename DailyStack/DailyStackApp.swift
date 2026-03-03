@@ -1,5 +1,134 @@
 import SwiftUI
 import SwiftData
+import UserNotifications
+import Combine
+
+// MARK: - NotificationManager
+
+class NotificationManager: ObservableObject {
+    static let shared = NotificationManager()
+    
+    private init() {}
+    
+    // 알림 권한 요청
+    func requestPermission() async -> Bool {
+        let center = UNUserNotificationCenter.current()
+        
+        do {
+            let granted = try await center.requestAuthorization(
+                options: [.alert, .sound, .badge]
+            )
+            return granted
+        } catch {
+            print("알림 권한 요청 실패: \(error)")
+            return false
+        }
+    }
+    
+    // 현재 권한 상태 확인
+    func checkPermissionStatus() async -> UNAuthorizationStatus {
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        return settings.authorizationStatus
+    }
+    
+    // 루틴 알림 예약
+    func scheduleRoutineNotification(for routine: Routine) async {
+        guard let notificationTime = routine.notificationTime else { return }
+        
+        // 기존 알림 취소
+        await cancelRoutineNotifications(for: routine)
+        
+        let center = UNUserNotificationCenter.current()
+        
+        // 루틴이 반복되는 요일들에 대해 알림 설정
+        for weekday in routine.repeatDays {
+            let content = UNMutableNotificationContent()
+            content.title = "루틴 알림"
+            content.body = "\(routine.title) 시간이에요!"
+            content.sound = .default
+            
+            // 아이콘이 있으면 표시
+            if let icon = routine.icon {
+                content.subtitle = "\(icon) \(routine.timeBlock.displayName)"
+            } else {
+                content.subtitle = routine.timeBlock.displayName
+            }
+            
+            // 날짜 컴포넌트 생성 (iOS 요일: 1=일요일, 2=월요일...)
+            var dateComponents = Calendar.current.dateComponents([.hour, .minute], from: notificationTime)
+            dateComponents.weekday = weekday + 1 // 0-6을 1-7로 변환
+            
+            let trigger = UNCalendarNotificationTrigger(
+                dateMatching: dateComponents,
+                repeats: true
+            )
+            
+            let identifier = "routine_\(routine.id.uuidString)_\(weekday)"
+            let request = UNNotificationRequest(
+                identifier: identifier,
+                content: content,
+                trigger: trigger
+            )
+            
+            do {
+                try await center.add(request)
+                print("알림 예약 성공: \(routine.title) - \(weekdayName(weekday))")
+            } catch {
+                print("알림 예약 실패: \(error)")
+            }
+        }
+    }
+    
+    // 루틴 알림 취소
+    func cancelRoutineNotifications(for routine: Routine) async {
+        let center = UNUserNotificationCenter.current()
+        
+        // 해당 루틴의 모든 알림 식별자 생성
+        let identifiers = routine.repeatDays.map { weekday in
+            "routine_\(routine.id.uuidString)_\(weekday)"
+        }
+        
+        center.removePendingNotificationRequests(withIdentifiers: identifiers)
+        print("알림 취소 완료: \(routine.title)")
+    }
+    
+    // 모든 루틴 알림 다시 설정
+    func rescheduleAllRoutineNotifications(routines: [Routine]) async {
+        // 모든 기존 알림 취소
+        let center = UNUserNotificationCenter.current()
+        center.removeAllPendingNotificationRequests()
+        
+        // 권한 확인
+        let status = await checkPermissionStatus()
+        guard status == .authorized else {
+            print("알림 권한이 없습니다")
+            return
+        }
+        
+        // 알림이 설정된 루틴들만 다시 예약
+        let routinesWithNotifications = routines.filter { $0.notificationTime != nil }
+        
+        for routine in routinesWithNotifications {
+            await scheduleRoutineNotification(for: routine)
+        }
+        
+        print("모든 루틴 알림 재설정 완료: \(routinesWithNotifications.count)개")
+    }
+    
+    // 요일 이름 반환
+    private func weekdayName(_ weekday: Int) -> String {
+        let names = ["일", "월", "화", "수", "목", "금", "토"]
+        return names[safe: weekday] ?? "알 수 없음"
+    }
+}
+
+// Array 안전 접근을 위한 extension
+extension Array {
+    subscript(safe index: Index) -> Element? {
+        return indices.contains(index) ? self[index] : nil
+    }
+}
 
 @main
 struct DailyStackApp: App {
@@ -80,12 +209,12 @@ struct DailyStackApp: App {
         
         do {
             // 완료된 Todo들을 가져와서 필터링
-            let descriptor = FetchDescriptor<Todo>(
+            let todoDescriptor = FetchDescriptor<Todo>(
                 predicate: #Predicate<Todo> { todo in
                     todo.isCompleted == true
                 }
             )
-            let completedTodos = try context.fetch(descriptor)
+            let completedTodos = try context.fetch(todoDescriptor)
             
             // 오늘 이전에 완료된 Todo들 찾기
             let todosToDelete = completedTodos.filter { todo in
@@ -103,8 +232,27 @@ struct DailyStackApp: App {
                 try context.save()
                 print("정리된 이전 날 완료 Todo: \(todosToDelete.count)개")
             }
+            
+            // 루틴 알림 설정
+            setupNotifications(context: context)
+            
         } catch {
-            print("Todo 정리 중 오류: \(error)")
+            print("앱 초기화 중 오류: \(error)")
+        }
+    }
+    
+    // 알림 설정
+    private func setupNotifications(context: ModelContext) {
+        Task {
+            do {
+                let routineDescriptor = FetchDescriptor<Routine>()
+                let routines = try context.fetch(routineDescriptor)
+                
+                // 모든 루틴 알림 재설정
+                await NotificationManager.shared.rescheduleAllRoutineNotifications(routines: routines)
+            } catch {
+                print("루틴 알림 설정 중 오류: \(error)")
+            }
         }
     }
 }

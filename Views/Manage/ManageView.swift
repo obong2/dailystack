@@ -118,8 +118,13 @@ struct ManageView: View {
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
-                modelContext.delete(routine)
-                try? modelContext.save()
+                Task {
+                    await NotificationManager.shared.cancelRoutineNotifications(for: routine)
+                    await MainActor.run {
+                        modelContext.delete(routine)
+                        try? modelContext.save()
+                    }
+                }
             } label: {
                 Label("삭제", systemImage: "trash")
             }
@@ -184,10 +189,20 @@ struct ManageView: View {
 
     private func deleteRoutine(block: TimeBlock, at offsets: IndexSet) {
         let blockRoutines = routines(for: block)
-        for index in offsets {
-            modelContext.delete(blockRoutines[index])
+        
+        Task {
+            for index in offsets {
+                let routine = blockRoutines[index]
+                await NotificationManager.shared.cancelRoutineNotifications(for: routine)
+            }
+            
+            await MainActor.run {
+                for index in offsets {
+                    modelContext.delete(blockRoutines[index])
+                }
+                try? modelContext.save()
+            }
         }
-        try? modelContext.save()
     }
 }
 
